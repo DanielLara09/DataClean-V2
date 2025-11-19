@@ -1,68 +1,400 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 
-export default function Lavado(){
+export default function Lavado() {
+  // Lista de clientes y lavados
   const [clientes, setClientes] = useState([]);
-  const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ cliente_id:'', fecha: new Date().toISOString(), turno:'Mañana', bajaKg:0, altaKg:0, infectoKg:0, reprocesoKg:0, desmancheKg:0 });
+  const [lavados, setLavados] = useState([]);
 
-  useEffect(() => { api.get('/clientes').then(r=>setClientes(r.data)); listado(); }, []);
-  function listado(){ api.get('/lavado').then(r=>setItems(r.data)); }
+  // Estado de carga / error
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
 
-  async function onSave(e){
-    e.preventDefault();
-    await api.post('/lavado', form);
-    setForm({ ...form, bajaKg:0, altaKg:0, infectoKg:0, reprocesoKg:0, desmancheKg:0 });
-    listado();
+  // Formulario para crear lavado
+  const [form, setForm] = useState({
+    cliente_id: '',
+    turno: 'Mañana',
+    bajaKg: '',
+    altaKg: '',
+    infectoKg: '',
+    reprocesoKg: '',
+    desmancheKg: '',
+  });
+
+  // Filtros de búsqueda
+  const [filtros, setFiltros] = useState({
+    cliente_id: '',
+    desde: '',
+    hasta: '',
+    turno: '',
+  });
+
+  // -------------------------------------------------
+  // Helpers
+  // -------------------------------------------------
+
+  function onChangeForm(e) {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function onChangeFiltro(e) {
+    const { name, value } = e.target;
+    setFiltros((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function limpiarForm() {
+    setForm({
+      cliente_id: '',
+      turno: 'Mañana',
+      bajaKg: '',
+      altaKg: '',
+      infectoKg: '',
+      reprocesoKg: '',
+      desmancheKg: '',
+    });
+  }
+
+  function limpiarFiltros() {
+    setFiltros({
+      cliente_id: '',
+      desde: '',
+      hasta: '',
+      turno: '',
+    });
+    cargarLavados(); // recarga sin filtros
+  }
+
+  function calcularTotal(row) {
+    const b = Number(row.bajaKg || 0);
+    const a = Number(row.altaKg || 0);
+    const i = Number(row.infectoKg || 0);
+    const r = Number(row.reprocesoKg || 0);
+    const d = Number(row.desmancheKg || 0);
+    return b + a + i + r + d;
+  }
+
+  // -------------------------------------------------
+  // Cargar datos
+  // -------------------------------------------------
+
+  async function cargarClientes() {
+    try {
+      const { data } = await api.get('/clientes');
+      setClientes(data);
+    } catch (err) {
+      console.error(err);
+      setError('No se pudieron cargar los clientes');
+    }
+  }
+
+  async function cargarLavados() {
+    try {
+      setCargando(true);
+      const params = new URLSearchParams();
+
+      if (filtros.cliente_id) params.append('cliente_id', filtros.cliente_id);
+      if (filtros.desde) params.append('desde', filtros.desde);
+      if (filtros.hasta) params.append('hasta', filtros.hasta);
+      if (filtros.turno) params.append('turno', filtros.turno);
+
+      const qs = params.toString();
+      const url = qs ? `/lavado?${qs}` : '/lavado';
+
+      const { data } = await api.get(url);
+      setLavados(data);
+      setError('');
+    } catch (err) {
+      console.error(err);
+      setError('No se pudieron cargar los registros de lavado');
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  useEffect(() => {
+    // Carga inicial de combos y tabla
+    cargarClientes();
+    cargarLavados();
+  }, []);
+
+  // -------------------------------------------------
+  // Guardar lavado nuevo
+  // -------------------------------------------------
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    try {
+      if (!form.cliente_id) {
+        setError('Debe seleccionar un cliente');
+        return;
+      }
+
+      // Al menos un valor distinto de vacío
+      const valores = [
+        form.bajaKg,
+        form.altaKg,
+        form.infectoKg,
+        form.reprocesoKg,
+        form.desmancheKg,
+      ];
+      const todosVacios = valores.every((v) => v === '' || v === null);
+      if (todosVacios) {
+        setError('Debe ingresar al menos un tipo de kilo (baja, alta, etc.)');
+        return;
+      }
+
+      await api.post('/lavado', {
+        cliente_id: form.cliente_id,
+        turno: form.turno,
+        bajaKg: Number(form.bajaKg || 0),
+        altaKg: Number(form.altaKg || 0),
+        infectoKg: Number(form.infectoKg || 0),
+        reprocesoKg: Number(form.reprocesoKg || 0),
+        desmancheKg: Number(form.desmancheKg || 0),
+      });
+
+      limpiarForm();
+      await cargarLavados();
+      setError('');
+    } catch (err) {
+      console.error(err);
+      setError('Error al guardar el registro de lavado');
+    }
+  }
+
+  // -------------------------------------------------
+  // Render
+  // -------------------------------------------------
+
   return (
-    <div className="grid gap-4">
-      <h2 className="text-xl font-semibold">Registro de Lavado</h2>
-      <form className="grid grid-cols-2 md:grid-cols-4 gap-2" onSubmit={onSave}>
-        <select className="border p-2" value={form.cliente_id} onChange={e=>setForm({...form, cliente_id:e.target.value})} required>
+    <div className="max-w-6xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">Registro de Lavado</h1>
+
+      {/* Formulario de registro */}
+      <form className="grid gap-3 md:grid-cols-6 mb-6" onSubmit={onSubmit}>
+        <select
+          name="cliente_id"
+          className="border p-2 md:col-span-2"
+          value={form.cliente_id}
+          onChange={onChangeForm}
+        >
           <option value="">Cliente</option>
-          {clientes.map(c=> <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          {clientes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
+            </option>
+          ))}
         </select>
-        <input className="border p-2" value={form.turno} onChange={e=>setForm({...form, turno:e.target.value})} placeholder="Turno" />
-        {['bajaKg','altaKg','infectoKg','reprocesoKg','desmancheKg'].map(k=> (
-          <input key={k} className="border p-2" type="number" min="0" step="0.01" placeholder={k} value={form[k]} onChange={e=>setForm({...form, [k]: e.target.value})} />
-        ))}
-        <button className="border p-2 col-span-full">Guardar</button>
+
+        <select
+          name="turno"
+          className="border p-2"
+          value={form.turno}
+          onChange={onChangeForm}
+        >
+          <option value="Mañana">Mañana</option>
+          <option value="Tarde">Tarde</option>
+          <option value="Noche">Noche</option>
+        </select>
+
+        <input
+          name="bajaKg"
+          className="border p-2"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Baja Kg"
+          value={form.bajaKg}
+          onChange={onChangeForm}
+        />
+
+        <input
+          name="altaKg"
+          className="border p-2"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Alta Kg"
+          value={form.altaKg}
+          onChange={onChangeForm}
+        />
+
+        <input
+          name="infectoKg"
+          className="border p-2"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Infecto Kg"
+          value={form.infectoKg}
+          onChange={onChangeForm}
+        />
+
+        <input
+          name="reprocesoKg"
+          className="border p-2"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Reproceso Kg"
+          value={form.reprocesoKg}
+          onChange={onChangeForm}
+        />
+
+        <input
+          name="desmancheKg"
+          className="border p-2 md:col-span-2"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Desmanche Kg"
+          value={form.desmancheKg}
+          onChange={onChangeForm}
+        />
+
+        <button className="border px-4 py-2 md:col-span-1">
+          Guardar
+        </button>
       </form>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-[720px] border">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="p-2 border">Fecha</th>
-              <th className="p-2 border">Cliente</th>
-              <th className="p-2 border">Turno</th>
-              <th className="p-2 border">Baja</th>
-              <th className="p-2 border">Alta</th>
-              <th className="p-2 border">Infecto</th>
-              <th className="p-2 border">Reproceso</th>
-              <th className="p-2 border">Desmanche</th>
-              <th className="p-2 border">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(i => (
-              <tr key={i.id}>
-                <td className="p-2 border">{new Date(i.fecha).toLocaleString()}</td>
-                <td className="p-2 border">{i.cliente}</td>
-                <td className="p-2 border">{i.turno}</td>
-                <td className="p-2 border">{i.bajaKg}</td>
-                <td className="p-2 border">{i.altaKg}</td>
-                <td className="p-2 border">{i.infectoKg}</td>
-                <td className="p-2 border">{i.reprocesoKg}</td>
-                <td className="p-2 border">{i.desmancheKg}</td>
-                <td className="p-2 border">{i.totalKg}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Errores */}
+      {error && (
+        <div className="text-red-600 mb-4 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Filtros */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
+        <select
+          className="border p-2 md:col-span-2"
+          name="cliente_id"
+          value={filtros.cliente_id}
+          onChange={onChangeFiltro}
+        >
+          <option value="">Todos los clientes</option>
+          {clientes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="date"
+          className="border p-2"
+          name="desde"
+          value={filtros.desde}
+          onChange={onChangeFiltro}
+        />
+
+        <input
+          type="date"
+          className="border p-2"
+          name="hasta"
+          value={filtros.hasta}
+          onChange={onChangeFiltro}
+        />
+
+        <select
+          className="border p-2"
+          name="turno"
+          value={filtros.turno}
+          onChange={onChangeFiltro}
+        >
+          <option value="">Todos los turnos</option>
+          <option value="Mañana">Mañana</option>
+          <option value="Tarde">Tarde</option>
+          <option value="Noche">Noche</option>
+        </select>
+
+        <button
+          type="button"
+          className="border px-4 py-2"
+          onClick={cargarLavados}
+        >
+          Filtrar
+        </button>
+
+        <button
+          type="button"
+          className="border px-4 py-2"
+          onClick={limpiarFiltros}
+        >
+          Limpiar
+        </button>
       </div>
+
+      {/* Tabla */}
+      {cargando ? (
+        <div>Cargando registros de lavado...</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border px-2 py-1 text-left">Fecha</th>
+                <th className="border px-2 py-1 text-left">Cliente</th>
+                <th className="border px-2 py-1 text-left">Turno</th>
+                <th className="border px-2 py-1 text-right">Baja</th>
+                <th className="border px-2 py-1 text-right">Alta</th>
+                <th className="border px-2 py-1 text-right">Infecto</th>
+                <th className="border px-2 py-1 text-right">Reproceso</th>
+                <th className="border px-2 py-1 text-right">Desmanche</th>
+                <th className="border px-2 py-1 text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lavados.map((l) => (
+                <tr key={l.id}>
+                  <td className="border px-2 py-1">
+                    {l.fecha
+                      ? new Date(l.fecha).toLocaleString('es-CO', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })
+                      : ''}
+                  </td>
+                  <td className="border px-2 py-1">
+                    {l.cliente_nombre || l.cliente || ''}
+                  </td>
+                  <td className="border px-2 py-1">{l.turno}</td>
+                  <td className="border px-2 py-1 text-right">
+                    {l.bajaKg}
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    {l.altaKg}
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    {l.infectoKg}
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    {l.reprocesoKg}
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    {l.desmancheKg}
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    {calcularTotal(l)}
+                  </td>
+                </tr>
+              ))}
+
+              {lavados.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="border px-2 py-2 text-center text-gray-500"
+                  >
+                    No hay registros de lavado con los filtros actuales.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

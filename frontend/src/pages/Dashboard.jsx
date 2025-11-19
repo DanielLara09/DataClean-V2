@@ -1,42 +1,257 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 
-export default function Dashboard(){
-  const [rows, setRows] = useState([]);
+// Si instalaste recharts, deja estos imports.
+// Si NO quieres gráfica, puedes borrarlos y también la sección de gráfica más abajo.
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+} from 'recharts';
 
-  const rol = localStorage.getItem('rol');
-  if (rol !== 'ADMIN') return <div>No tiene permiso para ver el Dashboard.</div>;
+function getHoyISO() {
+  const hoy = new Date();
+  const yyyy = hoy.getFullYear();
+  const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+  const dd = String(hoy.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function getPrimerDiaMesISO() {
+  const hoy = new Date();
+  const yyyy = hoy.getFullYear();
+  const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+  return `${yyyy}-${mm}-01`;
+}
+
+export default function Dashboard() {
+  const [desde, setDesde] = useState(getPrimerDiaMesISO());
+  const [hasta, setHasta] = useState(getHoyISO());
+  const [datos, setDatos] = useState([]);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState('');
+
+  // KPIs agregados
+  const totalLavado = datos.reduce(
+    (acc, d) => acc + Number(d.kg_lavados || 0),
+    0
+  );
+  const totalDespacho = datos.reduce(
+    (acc, d) => acc + Number(d.kg_despachados || 0),
+    0
+  );
+  const diferencia = totalLavado - totalDespacho;
+
+  const datosGrafica = datos
+    .slice()
+    .sort((a, b) => new Date(a.dia) - new Date(b.dia))
+    .map((d) => ({
+      ...d,
+      diaLabel: new Date(d.dia).toLocaleDateString('es-CO', {
+        day: '2-digit',
+        month: '2-digit',
+      }),
+      lavado: Number(d.kg_lavados || 0),
+      despacho: Number(d.kg_despachados || 0),
+    }));
+
+  async function cargarKpis() {
+    try {
+      if (!desde || !hasta) {
+        setError('Debe seleccionar un rango de fechas válido');
+        return;
+      }
+      setCargando(true);
+      setError('');
+
+      const params = new URLSearchParams({ desde, hasta });
+      const { data } = await api.get('/kpis/diario?' + params.toString());
+      setDatos(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      if (err.response?.status === 401) {
+        setError('Sesión expirada. Vuelva a iniciar sesión.');
+      } else {
+        setError('Error al cargar los KPIs');
+      }
+    } finally {
+      setCargando(false);
+    }
+  }
 
   useEffect(() => {
-    const hoy = new Date();
-    const desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().slice(0,10);
-    const hasta = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).toISOString().slice(0,10);
-    api.get(`/kpis/diario`, { params: { desde, hasta } }).then(r=>setRows(r.data));
+    // Carga inicial al abrir el dashboard
+    cargarKpis();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
+
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4">KPIs (mes actual)</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-[480px] border">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="p-2 border">Día</th>
-              <th className="p-2 border">Kg Lavados</th>
-              <th className="p-2 border">Kg Despachados</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.dia}>
-                <td className="p-2 border">{r.dia}</td>
-                <td className="p-2 border">{r.kg_lavados}</td>
-                <td className="p-2 border">{r.kg_despachados}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="max-w-6xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">Dashboard operativo</h1>
+
+      {/* Filtros de fecha */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 items-end">
+        <div>
+          <label className="block text-xs mb-1">Desde</label>
+          <input
+            type="date"
+            className="border p-2 w-full"
+            value={desde}
+            onChange={(e) => setDesde(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs mb-1">Hasta</label>
+          <input
+            type="date"
+            className="border p-2 w-full"
+            value={hasta}
+            onChange={(e) => setHasta(e.target.value)}
+          />
+        </div>
+        <button
+          className="border px-4 py-2 md:col-span-1"
+          onClick={cargarKpis}
+        >
+          Actualizar
+        </button>
       </div>
+
+      {error && (
+        <div className="text-red-600 text-sm mb-3">
+          {error}
+        </div>
+      )}
+
+      {/* Tarjetas resumen */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="border rounded-lg p-4">
+          <div className="text-xs text-gray-500 mb-1">Total lavado</div>
+          <div className="text-2xl font-semibold">
+            {totalLavado.toLocaleString('es-CO', {
+              minimumFractionDigits: 0,
+            })}{' '}
+            kg
+          </div>
+        </div>
+        <div className="border rounded-lg p-4">
+          <div className="text-xs text-gray-500 mb-1">Total despachado</div>
+          <div className="text-2xl font-semibold">
+            {totalDespacho.toLocaleString('es-CO', {
+              minimumFractionDigits: 0,
+            })}{' '}
+            kg
+          </div>
+        </div>
+        <div className="border rounded-lg p-4">
+          <div className="text-xs text-gray-500 mb-1">
+            Diferencia (lavado - despacho)
+          </div>
+          <div
+            className={
+              'text-2xl font-semibold ' +
+              (diferencia >= 0 ? 'text-green-700' : 'text-red-700')
+            }
+          >
+            {diferencia.toLocaleString('es-CO', {
+              minimumFractionDigits: 0,
+            })}{' '}
+            kg
+          </div>
+        </div>
+      </div>
+
+      {/* Gráfica */}
+      {!cargando && datosGrafica.length > 0 && (
+        <div className="border rounded-lg p-4 mb-6" style={{ height: 300 }}>
+          <h2 className="text-sm font-semibold mb-2">
+            Evolución diaria (Lavado vs Despacho)
+          </h2>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={datosGrafica}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="diaLabel" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="lavado"
+                name="Lavado (kg)"
+                stroke="#8884d8"
+              />
+              <Line
+                type="monotone"
+                dataKey="despacho"
+                name="Despacho (kg)"
+                stroke="#82ca9d"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Tabla detalle */}
+      {cargando ? (
+        <div>Cargando datos...</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border px-2 py-1 text-left">Fecha</th>
+                <th className="border px-2 py-1 text-right">Lavado (kg)</th>
+                <th className="border px-2 py-1 text-right">Despachado (kg)</th>
+                <th className="border px-2 py-1 text-right">Diferencia (kg)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {datos.map((d) => {
+                const diff =
+                  Number(d.kg_lavados || 0) -
+                  Number(d.kg_despachados || 0);
+                return (
+                  <tr key={d.dia}>
+                    <td className="border px-2 py-1">
+                      {new Date(d.dia).toLocaleDateString('es-CO')}
+                    </td>
+                    <td className="border px-2 py-1 text-right">
+                      {Number(d.kg_lavados || 0).toLocaleString('es-CO')}
+                    </td>
+                    <td className="border px-2 py-1 text-right">
+                      {Number(d.kg_despachados || 0).toLocaleString('es-CO')}
+                    </td>
+                    <td
+                      className={
+                        'border px-2 py-1 text-right ' +
+                        (diff >= 0 ? 'text-green-700' : 'text-red-700')
+                      }
+                    >
+                      {diff.toLocaleString('es-CO')}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {datos.length === 0 && !cargando && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="border px-2 py-2 text-center text-gray-500"
+                  >
+                    No hay datos en el rango seleccionado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

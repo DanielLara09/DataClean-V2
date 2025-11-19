@@ -7,17 +7,24 @@ import { v4 as uuid } from 'uuid';
 const router = Router();
 
 router.get('/', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
-  const { desde, hasta, cliente_id, estado } = req.query;
+  const { cliente_id, desde, hasta, turno } = req.query;
+  let sql = `
+    SELECT d.*, c.nombre AS cliente_nombre
+    FROM despacho d
+    JOIN cliente c ON c.id = d.cliente_id
+    WHERE 1 = 1
+  `;
   const params = [];
-  let sql = 'SELECT d.*, c.nombre AS cliente FROM despacho d JOIN cliente c ON c.id=d.cliente_id WHERE 1=1';
-  if (cliente_id) { sql += ' AND d.cliente_id=?'; params.push(cliente_id); }
-  if (estado) { sql += ' AND d.estado=?'; params.push(estado); }
-  if (desde) { sql += ' AND d.fecha>=?'; params.push(desde); }
-  if (hasta) { sql += ' AND d.fecha<?'; params.push(hasta); }
-  sql += ' ORDER BY d.fecha DESC LIMIT 200';
+  if (cliente_id) { sql += ' AND d.cliente_id = ?'; params.push(cliente_id); }
+  if (desde) { sql += ' AND DATE(d.fecha) >= ?'; params.push(desde); }
+  if (hasta) { sql += ' AND DATE(d.fecha) <= ?'; params.push(hasta); }
+  if (turno) { sql += ' AND d.turno = ?'; params.push(turno); }
+  sql += ' ORDER BY d.fecha DESC';
   const [rows] = await pool.query(sql, params);
   res.json(rows);
 });
+
+
 
 router.post('/', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
   try {

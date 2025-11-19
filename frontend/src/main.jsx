@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Lavado from './pages/Lavado.jsx';
 import Despacho from './pages/Despacho.jsx';
+import Clientes from './pages/Clientes.jsx';
 import Protected from './components/Protected.jsx';
 import './index.css';
 
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')).render(
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="lavado" element={<Lavado />} />
         <Route path="despacho" element={<Despacho />} />
+        <Route path="clientes" element={<Clientes />} /> {/* 👈 nueva ruta */}
       </Route>
     </Routes>
   </BrowserRouter>

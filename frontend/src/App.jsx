@@ -6,7 +6,6 @@ export default function App(){
   const [rol, setRol] = useState(localStorage.getItem('rol'));
 
   useEffect(() => {
-    // Si no hay rol pero sí hay token, podrías llamar /auth/me en el futuro
     setRol(localStorage.getItem('rol'));
   }, []);
 
@@ -23,6 +22,7 @@ export default function App(){
         {rol === 'ADMIN' && <Link to="/dashboard">Dashboard</Link>}
         {(rol === 'ADMIN' || rol === 'LAVADO') && <Link to="/lavado">Lavado</Link>}
         {(rol === 'ADMIN' || rol === 'DESPACHO') && <Link to="/despacho">Despacho</Link>}
+        {rol === 'ADMIN' && <Link to="/clientes">Clientes</Link>} {/* 👈 nuevo */}
         <button className="ml-auto" onClick={logout}>Salir</button>
       </nav>
       <main className="p-4">

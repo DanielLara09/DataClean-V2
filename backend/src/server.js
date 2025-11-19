@@ -8,13 +8,14 @@ import lavadoRoutes from './routes/lavado.routes.js';
 import despachoRoutes from './routes/despacho.routes.js';
 import remisionRoutes from './routes/remision.routes.js';
 import incidenciaRoutes from './routes/incidencia.routes.js';
+import kpiRoutes from './routes/kpi.routes.js';
 import { auth, allow } from './middleware/auth.js';
 import { kpiDiario } from './services/kpi.service.js';
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:5173', credentials: false }));
 app.use(express.json());
-
+app.use('/api/kpis', kpiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/clientes', auth, clientesRoutes);
 app.use('/api/lavado', lavadoRoutes);

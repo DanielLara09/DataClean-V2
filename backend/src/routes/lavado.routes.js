@@ -6,17 +6,48 @@ import { v4 as uuid } from 'uuid';
 
 const router = Router();
 
-router.get('/', auth, allow('ADMIN','LAVADO'), async (req, res) => {
-  const { desde, hasta, cliente_id } = req.query;
-  const params = [];
-  let sql = 'SELECT l.*, c.nombre AS cliente FROM lavado l JOIN cliente c ON c.id=l.cliente_id WHERE 1=1';
-  if (cliente_id) { sql += ' AND l.cliente_id=?'; params.push(cliente_id); }
-  if (desde) { sql += ' AND l.fecha>=?'; params.push(desde); }
-  if (hasta) { sql += ' AND l.fecha<?'; params.push(hasta); }
-  sql += ' ORDER BY l.fecha DESC LIMIT 200';
-  const [rows] = await pool.query(sql, params);
-  res.json(rows);
+router.get('/', auth, allow('ADMIN', 'LAVADO'), async (req, res) => {
+  try {
+    const { cliente_id, desde, hasta, turno } = req.query;
+
+    let sql = `
+      SELECT l.*, c.nombre AS cliente_nombre
+      FROM lavado l
+      JOIN cliente c ON c.id = l.cliente_id
+      WHERE 1 = 1
+    `;
+    const params = [];
+
+    if (cliente_id) {
+      sql += ` AND l.cliente_id = ?`;
+      params.push(cliente_id);
+    }
+
+    if (desde) {
+      sql += ` AND DATE(l.fecha) >= ?`;
+      params.push(desde);
+    }
+
+    if (hasta) {
+      sql += ` AND DATE(l.fecha) <= ?`;
+      params.push(hasta);
+    }
+
+    if (turno) {
+      sql += ` AND l.turno = ?`;
+      params.push(turno);
+    }
+
+    sql += ` ORDER BY l.fecha DESC`;
+
+    const [rows] = await pool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error en filtro de lavado:', err);
+    res.status(500).json({ error: 'Error al obtener registros' });
+  }
 });
+
 
 router.post('/', auth, allow('ADMIN','LAVADO'), async (req, res) => {
   try {
