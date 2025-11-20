@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
-
-// Si instalaste recharts, deja estos imports.
-// Si NO quieres gráfica, puedes borrarlos y también la sección de gráfica más abajo.
 import {
   ResponsiveContainer,
   LineChart,
@@ -36,6 +33,10 @@ export default function Dashboard() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
 
+  // 🔹 Nuevo: clientes y filtro por cliente
+  const [clientes, setClientes] = useState([]);
+  const [clienteId, setClienteId] = useState('');
+
   // KPIs agregados
   const totalLavado = datos.reduce(
     (acc, d) => acc + Number(d.kg_lavados || 0),
@@ -60,6 +61,16 @@ export default function Dashboard() {
       despacho: Number(d.kg_despachados || 0),
     }));
 
+  async function cargarClientes() {
+    try {
+      const { data } = await api.get('/clientes');
+      setClientes(data);
+    } catch (err) {
+      console.error(err);
+      // no es crítico para el dashboard, pero lo podrías mostrar
+    }
+  }
+
   async function cargarKpis() {
     try {
       if (!desde || !hasta) {
@@ -70,6 +81,10 @@ export default function Dashboard() {
       setError('');
 
       const params = new URLSearchParams({ desde, hasta });
+      if (clienteId) {
+        params.append('cliente_id', clienteId);
+      }
+
       const { data } = await api.get('/kpis/diario?' + params.toString());
       setDatos(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -85,7 +100,7 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // Carga inicial al abrir el dashboard
+    cargarClientes();
     cargarKpis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -94,8 +109,24 @@ export default function Dashboard() {
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Dashboard operativo</h1>
 
-      {/* Filtros de fecha */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 items-end">
+      {/* Filtros de cliente + fecha */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4 items-end">
+        <div className="md:col-span-2">
+          <label className="block text-xs mb-1">Cliente</label>
+          <select
+            className="border p-2 w-full"
+            value={clienteId}
+            onChange={(e) => setClienteId(e.target.value)}
+          >
+            <option value="">Todos los clientes</option>
+            {clientes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div>
           <label className="block text-xs mb-1">Desde</label>
           <input
@@ -115,7 +146,7 @@ export default function Dashboard() {
           />
         </div>
         <button
-          className="border px-4 py-2 md:col-span-1"
+          className="border px-4 py-2"
           onClick={cargarKpis}
         >
           Actualizar
@@ -131,7 +162,9 @@ export default function Dashboard() {
       {/* Tarjetas resumen */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="border rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total lavado</div>
+          <div className="text-xs text-gray-500 mb-1">
+            Total lavado{clienteId ? ' (cliente)' : ''}
+          </div>
           <div className="text-2xl font-semibold">
             {totalLavado.toLocaleString('es-CO', {
               minimumFractionDigits: 0,
@@ -140,7 +173,9 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="border rounded-lg p-4">
-          <div className="text-xs text-gray-500 mb-1">Total despachado</div>
+          <div className="text-xs text-gray-500 mb-1">
+            Total despachado{clienteId ? ' (cliente)' : ''}
+          </div>
           <div className="text-2xl font-semibold">
             {totalDespacho.toLocaleString('es-CO', {
               minimumFractionDigits: 0,
@@ -171,6 +206,7 @@ export default function Dashboard() {
         <div className="border rounded-lg p-4 mb-6" style={{ height: 300 }}>
           <h2 className="text-sm font-semibold mb-2">
             Evolución diaria (Lavado vs Despacho)
+            {clienteId ? ' - cliente seleccionado' : ' - todos los clientes'}
           </h2>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={datosGrafica}>
