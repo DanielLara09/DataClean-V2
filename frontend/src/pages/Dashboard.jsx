@@ -61,6 +61,41 @@ export default function Dashboard() {
       despacho: Number(d.kg_despachados || 0),
     }));
 
+  async function exportarCsv() {
+    try {
+      if (!desde || !hasta) {
+        setError('Debe seleccionar un rango de fechas válido');
+        return;
+      }
+
+      const params = new URLSearchParams({ desde, hasta });
+      if (clienteId) params.append('cliente_id', clienteId);
+
+      // Usamos axios con responseType: 'blob'
+      const response = await api.get('/kpis/diario/export?' + params.toString(), {
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+
+      const nombre = `kpi-diario-${desde}_a_${hasta}${clienteId ? `-cliente-${clienteId}` : ''}.csv`;
+      link.setAttribute('download', nombre);
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exportando CSV:', err);
+      setError('Error al exportar el archivo CSV');
+    }
+  }
+
+
   async function cargarClientes() {
     try {
       const { data } = await api.get('/clientes');
@@ -110,8 +145,9 @@ export default function Dashboard() {
       <h1 className="text-2xl font-semibold mb-4">Dashboard operativo</h1>
 
       {/* Filtros de cliente + fecha */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4 items-end">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4 items-end">
         <div className="md:col-span-2">
+          {/* Cliente */}
           <label className="block text-xs mb-1">Cliente</label>
           <select
             className="border p-2 w-full"
@@ -136,6 +172,7 @@ export default function Dashboard() {
             onChange={(e) => setDesde(e.target.value)}
           />
         </div>
+
         <div>
           <label className="block text-xs mb-1">Hasta</label>
           <input
@@ -145,13 +182,22 @@ export default function Dashboard() {
             onChange={(e) => setHasta(e.target.value)}
           />
         </div>
+
         <button
           className="border px-4 py-2"
           onClick={cargarKpis}
         >
           Actualizar
         </button>
+
+        <button
+          className="border px-4 py-2"
+          onClick={exportarCsv}
+        >
+          Exportar CSV
+        </button>
       </div>
+
 
       {error && (
         <div className="text-red-600 text-sm mb-3">
