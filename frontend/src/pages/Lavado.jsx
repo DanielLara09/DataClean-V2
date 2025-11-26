@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react';
 import api from '../api/client';
 
 export default function Lavado() {
-  // Lista de clientes y lavados
   const [clientes, setClientes] = useState([]);
   const [lavados, setLavados] = useState([]);
+  const [editId, setEditId] = useState(null);
 
-  // Estado de carga / error
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
-  // Formulario para crear lavado
   const [form, setForm] = useState({
     cliente_id: '',
     turno: 'Mañana',
@@ -48,6 +46,7 @@ export default function Lavado() {
       reprocesoKg: '',
       desmancheKg: '',
     });
+    setEditId(null);
   }
 
   function limpiarFiltros() {
@@ -57,7 +56,7 @@ export default function Lavado() {
       hasta: '',
       turno: '',
     });
-    cargarLavados(); // recarga sin filtros
+    cargarLavados();
   }
 
   function calcularTotal(row) {
@@ -68,10 +67,6 @@ export default function Lavado() {
     const d = Number(row.desmancheKg || 0);
     return b + a + i + r + d;
   }
-
-  // -------------------------------------------------
-  // Cargar datos
-  // -------------------------------------------------
 
   async function cargarClientes() {
     try {
@@ -108,14 +103,9 @@ export default function Lavado() {
   }
 
   useEffect(() => {
-    // Carga inicial de combos y tabla
     cargarClientes();
     cargarLavados();
   }, []);
-
-  // -------------------------------------------------
-  // Guardar lavado nuevo
-  // -------------------------------------------------
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -125,7 +115,6 @@ export default function Lavado() {
         return;
       }
 
-      // Al menos un valor distinto de vacío
       const valores = [
         form.bajaKg,
         form.altaKg,
@@ -139,15 +128,20 @@ export default function Lavado() {
         return;
       }
 
-      await api.post('/lavado', {
-        cliente_id: form.cliente_id,
+      const payload = {
         turno: form.turno,
         bajaKg: Number(form.bajaKg || 0),
         altaKg: Number(form.altaKg || 0),
         infectoKg: Number(form.infectoKg || 0),
         reprocesoKg: Number(form.reprocesoKg || 0),
         desmancheKg: Number(form.desmancheKg || 0),
-      });
+      };
+
+      if (editId) {
+        await api.put(`/lavado/${editId}`, payload);
+      } else {
+        await api.post('/lavado', { ...payload, cliente_id: form.cliente_id });
+      }
 
       limpiarForm();
       await cargarLavados();
@@ -159,27 +153,41 @@ export default function Lavado() {
   }
 
   async function eliminarLavado(id) {
-  if (!window.confirm('¿Seguro que desea eliminar este registro?')) return;
+    if (!window.confirm('¿Seguro que desea eliminar este registro?')) return;
 
-  try {
-    await api.delete(`/lavado/${id}`);
-    await cargarLavados();
-  } catch (err) {
-    console.error(err);
-    setError('Ocurrió un error al eliminar el registro');
+    try {
+      await api.delete(`/lavado/${id}`);
+      await cargarLavados();
+    } catch (err) {
+      console.error(err);
+      setError('Ocurrió un error al eliminar el registro');
+    }
   }
-}
+
+  function empezarEdicion(l) {
+    setEditId(l.id);
+    setForm({
+      cliente_id: l.cliente_id,
+      turno: l.turno,
+      bajaKg: l.bajaKg,
+      altaKg: l.altaKg,
+      infectoKg: l.infectoKg,
+      reprocesoKg: l.reprocesoKg,
+      desmancheKg: l.desmancheKg,
+    });
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Registro de Lavado</h1>
 
-      {/* Formulario de registro */}
       <form className="grid gap-3 md:grid-cols-6 mb-6" onSubmit={onSubmit}>
         <select
           name="cliente_id"
           className="border p-2 md:col-span-2"
           value={form.cliente_id}
           onChange={onChangeForm}
+          disabled={!!editId}
         >
           <option value="">Cliente</option>
           {clientes.map((c) => (
@@ -256,18 +264,25 @@ export default function Lavado() {
         />
 
         <button className="border px-4 py-2 md:col-span-1">
-          Guardar
+          {editId ? 'Actualizar' : 'Guardar'}
         </button>
+        {editId && (
+          <button
+            type="button"
+            className="border px-4 py-2 md:col-span-1"
+            onClick={limpiarForm}
+          >
+            Cancelar
+          </button>
+        )}
       </form>
 
-      {/* Errores */}
       {error && (
         <div className="text-red-600 mb-4 text-sm">
           {error}
         </div>
       )}
 
-      {/* Filtros */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
         <select
           className="border p-2 md:col-span-2"
@@ -328,7 +343,6 @@ export default function Lavado() {
         </button>
       </div>
 
-      {/* Tabla */}
       {cargando ? (
         <div>Cargando registros de lavado...</div>
       ) : (
@@ -345,6 +359,7 @@ export default function Lavado() {
                 <th className="border px-2 py-1 text-right">Reproceso</th>
                 <th className="border px-2 py-1 text-right">Desmanche</th>
                 <th className="border px-2 py-1 text-right">Total</th>
+                <th className="border px-2 py-1 text-left">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -380,13 +395,31 @@ export default function Lavado() {
                   <td className="border px-2 py-1 text-right">
                     {calcularTotal(l)}
                   </td>
+                  <td className="border px-2 py-1">
+                    <div className="flex gap-2">
+                      <button
+                        className="text-blue-600 underline"
+                        type="button"
+                        onClick={() => empezarEdicion(l)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="text-red-600 underline"
+                        type="button"
+                        onClick={() => eliminarLavado(l.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
 
               {lavados.length === 0 && (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="border px-2 py-2 text-center text-gray-500"
                   >
                     No hay registros de lavado con los filtros actuales.

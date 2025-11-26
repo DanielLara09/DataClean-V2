@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react';
 import api from '../api/client';
 
 export default function Despacho() {
-  // Lista de clientes y despachos
   const [clientes, setClientes] = useState([]);
   const [despachos, setDespachos] = useState([]);
+  const [editId, setEditId] = useState(null);
 
-  // Estado de carga / error
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
-  // Formulario para crear despacho
   const [form, setForm] = useState({
     cliente_id: '',
     turno: 'Mañana',
@@ -18,17 +16,12 @@ export default function Despacho() {
     estado: 'Entregado',
   });
 
-  // Filtros de búsqueda
   const [filtros, setFiltros] = useState({
     cliente_id: '',
     desde: '',
     hasta: '',
     turno: '',
   });
-
-  // -------------------------------------------------
-  // Helpers
-  // -------------------------------------------------
 
   function onChangeForm(e) {
     const { name, value } = e.target;
@@ -47,6 +40,7 @@ export default function Despacho() {
       kilosDespachados: '',
       estado: 'Entregado',
     });
+    setEditId(null);
   }
 
   function limpiarFiltros() {
@@ -56,12 +50,8 @@ export default function Despacho() {
       hasta: '',
       turno: '',
     });
-    cargarDespachos(); // recarga sin filtros
+    cargarDespachos();
   }
-
-  // -------------------------------------------------
-  // Cargar datos
-  // -------------------------------------------------
 
   async function cargarClientes() {
     try {
@@ -98,14 +88,9 @@ export default function Despacho() {
   }
 
   useEffect(() => {
-    // Carga inicial de combos y tabla
     cargarClientes();
     cargarDespachos();
   }, []);
-
-  // -------------------------------------------------
-  // Guardar despacho nuevo
-  // -------------------------------------------------
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -119,12 +104,17 @@ export default function Despacho() {
         return;
       }
 
-      await api.post('/despacho', {
-        cliente_id: form.cliente_id,
+      const payload = {
         turno: form.turno,
         kilosDespachados: Number(form.kilosDespachados),
         estado: form.estado,
-      });
+      };
+
+      if (editId) {
+        await api.put(`/despacho/${editId}`, payload);
+      } else {
+        await api.post('/despacho', { ...payload, cliente_id: form.cliente_id });
+      }
 
       limpiarForm();
       await cargarDespachos();
@@ -135,21 +125,38 @@ export default function Despacho() {
     }
   }
 
-  // -------------------------------------------------
-  // Render
-  // -------------------------------------------------
+  async function eliminarDespacho(id) {
+    if (!window.confirm('¿Seguro que desea eliminar este despacho?')) return;
+    try {
+      await api.delete(`/despacho/${id}`);
+      await cargarDespachos();
+    } catch (err) {
+      console.error(err);
+      setError('Error al eliminar el despacho');
+    }
+  }
+
+  function empezarEdicion(d) {
+    setEditId(d.id);
+    setForm({
+      cliente_id: d.cliente_id,
+      turno: d.turno,
+      kilosDespachados: d.kilosDespachados,
+      estado: d.estado,
+    });
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Registro de Despacho</h1>
 
-      {/* Formulario de registro */}
       <form className="grid gap-3 md:grid-cols-4 mb-6" onSubmit={onSubmit}>
         <select
           name="cliente_id"
           className="border p-2 md:col-span-2"
           value={form.cliente_id}
           onChange={onChangeForm}
+          disabled={!!editId}
         >
           <option value="">Cliente</option>
           {clientes.map((c) => (
@@ -193,18 +200,25 @@ export default function Despacho() {
         </select>
 
         <button className="border px-4 py-2 md:col-span-1">
-          Guardar
+          {editId ? 'Actualizar' : 'Guardar'}
         </button>
+        {editId && (
+          <button
+            type="button"
+            className="border px-4 py-2 md:col-span-1"
+            onClick={limpiarForm}
+          >
+            Cancelar
+          </button>
+        )}
       </form>
 
-      {/* Errores */}
       {error && (
         <div className="text-red-600 mb-4 text-sm">
           {error}
         </div>
       )}
 
-      {/* Filtros */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
         <select
           className="border p-2 md:col-span-2"
@@ -265,7 +279,6 @@ export default function Despacho() {
         </button>
       </div>
 
-      {/* Tabla */}
       {cargando ? (
         <div>Cargando despachos...</div>
       ) : (
@@ -278,6 +291,7 @@ export default function Despacho() {
                 <th className="border px-2 py-1 text-left">Turno</th>
                 <th className="border px-2 py-1 text-right">Kilos</th>
                 <th className="border px-2 py-1 text-left">Estado</th>
+                <th className="border px-2 py-1 text-left">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -299,13 +313,31 @@ export default function Despacho() {
                     {d.kilosDespachados}
                   </td>
                   <td className="border px-2 py-1">{d.estado}</td>
+                  <td className="border px-2 py-1">
+                    <div className="flex gap-2">
+                      <button
+                        className="text-blue-600 underline"
+                        type="button"
+                        onClick={() => empezarEdicion(d)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="text-red-600 underline"
+                        type="button"
+                        onClick={() => eliminarDespacho(d.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
 
               {despachos.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="border px-2 py-2 text-center text-gray-500"
                   >
                     No hay despachos registrados con los filtros actuales.
