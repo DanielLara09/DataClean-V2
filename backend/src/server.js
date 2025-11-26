@@ -13,6 +13,10 @@ import { auth, allow } from './middleware/auth.js';
 import { kpiDiario } from './services/kpi.service.js';
 
 const app = express();
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL 
+];
 app.use(cors({ origin: 'http://localhost:5173', credentials: false }));
 app.use(express.json());
 app.use('/api/kpis', kpiRoutes);
@@ -22,6 +26,7 @@ app.use('/api/lavado', lavadoRoutes);
 app.use('/api/despacho', despachoRoutes);
 app.use('/api/remision', remisionRoutes);
 app.use('/api/incidencia', incidenciaRoutes);
+app.use(cors({origin: allowedOrigins, credentials: false}));
 
 app.get('/api/kpis/diario', auth, allow('ADMIN'), async (req, res) => {
   const { desde, hasta } = req.query;

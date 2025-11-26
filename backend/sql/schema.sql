@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS dataclean CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci;
-USE dataclean;
+/*CREATE DATABASE IF NOT EXISTS dataclean CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci;
+USE dataclean;*/
 
 -- Usuarios
 CREATE TABLE IF NOT EXISTS usuario (
