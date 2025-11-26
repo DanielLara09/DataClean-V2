@@ -117,22 +117,19 @@ export default function Dashboard() {
 
       const params = new URLSearchParams({ desde, hasta });
       if (clienteId) {
-        params.append('cliente_id', clienteId);
+        params.append('cliente_id', clienteId); // 👈 clave: cliente_id
       }
 
       const { data } = await api.get('/kpis/diario?' + params.toString());
       setDatos(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
-      if (err.response?.status === 401) {
-        setError('Sesión expirada. Vuelva a iniciar sesión.');
-      } else {
-        setError('Error al cargar los KPIs');
-      }
+      setError('Error al cargar los KPIs');
     } finally {
       setCargando(false);
     }
   }
+
 
   useEffect(() => {
     cargarClientes();

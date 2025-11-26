@@ -21,17 +21,12 @@ export default function Lavado() {
     desmancheKg: '',
   });
 
-  // Filtros de búsqueda
   const [filtros, setFiltros] = useState({
     cliente_id: '',
     desde: '',
     hasta: '',
     turno: '',
   });
-
-  // -------------------------------------------------
-  // Helpers
-  // -------------------------------------------------
 
   function onChangeForm(e) {
     const { name, value } = e.target;
@@ -163,10 +158,17 @@ export default function Lavado() {
     }
   }
 
-  // -------------------------------------------------
-  // Render
-  // -------------------------------------------------
+  async function eliminarLavado(id) {
+  if (!window.confirm('¿Seguro que desea eliminar este registro?')) return;
 
+  try {
+    await api.delete(`/lavado/${id}`);
+    await cargarLavados();
+  } catch (err) {
+    console.error(err);
+    setError('Ocurrió un error al eliminar el registro');
+  }
+}
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Registro de Lavado</h1>
@@ -351,9 +353,9 @@ export default function Lavado() {
                   <td className="border px-2 py-1">
                     {l.fecha
                       ? new Date(l.fecha).toLocaleString('es-CO', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        })
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      })
                       : ''}
                   </td>
                   <td className="border px-2 py-1">

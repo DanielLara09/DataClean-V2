@@ -58,4 +58,25 @@ router.put('/:id', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
   res.json({ ok:true });
 });
 
+router.delete('/:id', auth, allow('ADMIN'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [result] = await pool.query(
+      `DELETE FROM despacho WHERE id = ?`,
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Registro no encontrado' });
+    }
+
+    res.json({ ok: true, mensaje: 'Registro eliminado correctamente' });
+  } catch (err) {
+    console.error('Error eliminando despacho:', err);
+    res.status(500).json({ error: 'Error al eliminar el registro' });
+  }
+});
+
+
 export default router;
