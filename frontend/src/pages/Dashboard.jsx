@@ -89,6 +89,7 @@ export default function Dashboard() {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+      setError('');
     } catch (err) {
       console.error('Error exportando CSV:', err);
       setError('Error al exportar el archivo CSV');
