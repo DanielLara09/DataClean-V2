@@ -13,12 +13,20 @@ import { auth, allow } from './middleware/auth.js';
 import { kpiDiario } from './services/kpi.service.js';
 
 const app = express();
+
 const allowedOrigins = [
-  'http://localhost:5173',
-  'https://datacleansas.netlify.app', 
+  'http://localhost:5173',              // dev
+  'https://datacleansas.netlify.app',   // producción
 ];
-app.use(cors());
+
+// 👉 CORS: una sola vez, ANTES de las rutas
+app.use(cors({
+  origin: allowedOrigins,
+}));
+
 app.use(express.json());
+
+// RUTAS
 app.use('/api/kpis', kpiRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/clientes', auth, clientesRoutes);
@@ -26,7 +34,6 @@ app.use('/api/lavado', lavadoRoutes);
 app.use('/api/despacho', despachoRoutes);
 app.use('/api/remision', remisionRoutes);
 app.use('/api/incidencia', incidenciaRoutes);
-app.use(cors({origin: allowedOrigins, credentials: false}));
 
 app.get('/api/kpis/diario', auth, allow('ADMIN'), async (req, res) => {
   const { desde, hasta } = req.query;
