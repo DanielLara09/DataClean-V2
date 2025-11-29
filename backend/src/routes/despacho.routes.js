@@ -41,7 +41,7 @@ function normalizarEstado(estado) {
 
 router.post('/', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
   try {
-    const { cliente_id, fecha, turno, kilosDespachados, estado } = req.body;
+    const { cliente_id, fecha, turno, kilosDespachados, estado, remision } = req.body;
 
     if (!fecha) {
       return res.status(400).json({ error: 'La fecha es obligatoria' });
@@ -50,11 +50,12 @@ router.post('/', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
     const id = randomUUID();
     const creado_por = req.user.id;
     const estadoNormalizado = normalizarEstado(estado);
+    const remisionValor = (remision || '').trim() || null;
 
     await pool.query(
-      `INSERT INTO despacho (id, cliente_id, fecha, turno, kilosDespachados, estado, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, cliente_id, fecha.replace('T', ' '), turno, kilosDespachados, estadoNormalizado, creado_por]
+      `INSERT INTO despacho (id, cliente_id, fecha, turno, remision, kilosDespachados, estado, creado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, cliente_id, fecha.replace('T', ' '), turno, remisionValor, kilosDespachados, estadoNormalizado, creado_por]
     );
 
     res.status(201).json({ id });
@@ -67,17 +68,18 @@ router.post('/', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
 
 router.put('/:id', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
   const { id } = req.params;
-  const { fecha, turno, kilosDespachados, estado } = req.body;
+  const { fecha, turno, kilosDespachados, estado, remision } = req.body;
 
   if (!fecha) {
     return res.status(400).json({ error: 'La fecha es obligatoria' });
   }
 
   const estadoNormalizado = normalizarEstado(estado);
+  const remisionValor = (remision || '').trim() || null;
 
   await pool.query(
-    `UPDATE despacho SET fecha=?, turno=?, kilosDespachados=?, estado=? WHERE id=?`,
-    [fecha.replace('T', ' '), turno, kilosDespachados, estadoNormalizado, id]
+    `UPDATE despacho SET fecha=?, turno=?, remision=?, kilosDespachados=?, estado=? WHERE id=?`,
+    [fecha.replace('T', ' '), turno, remisionValor, kilosDespachados, estadoNormalizado, id]
   );
   res.json({ ok:true });
 });

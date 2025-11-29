@@ -14,6 +14,7 @@ export default function Despacho() {
       fecha: toDateTimeLocal(new Date()),
       cliente_id: clienteId,
       turno: 'Mañana',
+      remision: '',
       kilosDespachados: '',
       estado: 'ENTREGADO',
     };
@@ -38,7 +39,7 @@ export default function Despacho() {
     cliente_id: '',
     desde: '',
     hasta: '',
-    turno: 'Ma\u00f1ana',
+    turno: '',
   });
 
   function onChangeForm(e) {
@@ -62,7 +63,7 @@ export default function Despacho() {
       cliente_id: '',
       desde: '',
       hasta: '',
-      turno: 'Ma\u00f1ana',
+      turno: '',
     });
     cargarDespachos();
   }
@@ -125,6 +126,7 @@ export default function Despacho() {
       const payload = {
         fecha: form.fecha,
         turno: form.turno,
+        remision: (form.remision || '').trim(),
         kilosDespachados: Number(form.kilosDespachados),
         estado: form.estado,
       };
@@ -161,6 +163,7 @@ export default function Despacho() {
       fecha: toDateTimeLocal(d.fecha),
       cliente_id: d.cliente_id,
       turno: d.turno,
+      remision: d.remision || '',
       kilosDespachados: d.kilosDespachados,
       estado: d.estado,
     });
@@ -175,7 +178,7 @@ export default function Despacho() {
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Registro de Despacho</h1>
 
-      <form className="grid gap-3 md:grid-cols-5 mb-6" onSubmit={onSubmit}>
+      <form className="grid gap-3 md:grid-cols-6 mb-6" onSubmit={onSubmit}>
         <select
           name="cliente_id"
           className="border p-2 md:col-span-2"
@@ -209,6 +212,15 @@ export default function Despacho() {
           <option value="Tarde">Tarde</option>
           <option value="Noche">Noche</option>
         </select>
+
+        <input
+          name="remision"
+          className="border p-2"
+          type="text"
+          placeholder="Remisión (número/s, separados por coma)"
+          value={form.remision}
+          onChange={onChangeForm}
+        />
 
         <input
           name="kilosDespachados"
@@ -331,6 +343,7 @@ export default function Despacho() {
                 <th className="border px-2 py-1 text-left">Fecha</th>
                 <th className="border px-2 py-1 text-left">Cliente</th>
                 <th className="border px-2 py-1 text-left">Turno</th>
+                <th className="border px-2 py-1 text-left">Remisión</th>
                 <th className="border px-2 py-1 text-right">Kilos</th>
                 <th className="border px-2 py-1 text-left">Estado</th>
                 <th className="border px-2 py-1 text-left">Acciones</th>
@@ -351,6 +364,9 @@ export default function Despacho() {
                     {d.cliente_nombre || d.cliente || ''}
                   </td>
                   <td className="border px-2 py-1">{d.turno}</td>
+                  <td className="border px-2 py-1">
+                    {d.remision || ''}
+                  </td>
                   <td className="border px-2 py-1 text-right">
                     {d.kilosDespachados}
                   </td>
@@ -379,7 +395,7 @@ export default function Despacho() {
               {despachos.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="border px-2 py-2 text-center text-gray-500"
                   >
                     No hay despachos registrados con los filtros actuales.
@@ -390,7 +406,7 @@ export default function Despacho() {
             {despachos.length > 0 && (
               <tfoot>
                 <tr className="bg-gray-50 font-semibold">
-                  <td colSpan={3} className="border px-2 py-1 text-right">
+                  <td colSpan={4} className="border px-2 py-1 text-right">
                     Total kilos despachados
                   </td>
                   <td className="border px-2 py-1 text-right">

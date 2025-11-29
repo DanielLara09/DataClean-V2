@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS despacho (
   cliente_id CHAR(36) NOT NULL,
   fecha DATETIME NOT NULL,
   turno VARCHAR(20) NOT NULL,
+  remision VARCHAR(255),
   kilosDespachados DECIMAL(10,2) NOT NULL CHECK (kilosDespachados >= 0),
   estado ENUM('PENDIENTE','EN_TRANSITO','ENTREGADO','CERRADO') NOT NULL DEFAULT 'PENDIENTE',
   creado_por CHAR(36) NOT NULL,
