@@ -1,7 +1,24 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import api from '../api/client';
 
 export default function Despacho() {
+  function toDateTimeLocal(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    const offset = date.getTimezoneOffset();
+    return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+  }
+
+  function createInitialForm(clienteId = '') {
+    return {
+      fecha: toDateTimeLocal(new Date()),
+      cliente_id: clienteId,
+      turno: 'Mañana',
+      kilosDespachados: '',
+      estado: 'ENTREGADO',
+    };
+  }
+
   const [clientes, setClientes] = useState([]);
   const [despachos, setDespachos] = useState([]);
   const [editId, setEditId] = useState(null);
@@ -9,18 +26,19 @@ export default function Despacho() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
-  const [form, setForm] = useState({
-    cliente_id: '',
-    turno: 'Mañana',
-    kilosDespachados: '',
-    estado: 'Entregado',
-  });
+  const [form, setForm] = useState(createInitialForm());
+
+  const ESTADOS = [
+    { value: 'ENTREGADO', label: 'Entregado' },
+    { value: 'EN_TRANSITO', label: 'En tránsito' },
+    { value: 'PENDIENTE', label: 'Pendiente' },
+  ];
 
   const [filtros, setFiltros] = useState({
     cliente_id: '',
     desde: '',
     hasta: '',
-    turno: '',
+    turno: 'Ma\u00f1ana',
   });
 
   function onChangeForm(e) {
@@ -33,13 +51,9 @@ export default function Despacho() {
     setFiltros((prev) => ({ ...prev, [name]: value }));
   }
 
-  function limpiarForm() {
-    setForm({
-      cliente_id: '',
-      turno: 'Mañana',
-      kilosDespachados: '',
-      estado: 'Entregado',
-    });
+  function limpiarForm(keepCliente = false) {
+    const cliente = keepCliente ? form.cliente_id : '';
+    setForm(createInitialForm(cliente));
     setEditId(null);
   }
 
@@ -48,7 +62,7 @@ export default function Despacho() {
       cliente_id: '',
       desde: '',
       hasta: '',
-      turno: '',
+      turno: 'Ma\u00f1ana',
     });
     cargarDespachos();
   }
@@ -99,12 +113,17 @@ export default function Despacho() {
         setError('Debe seleccionar un cliente');
         return;
       }
+      if (!form.fecha) {
+        setError('Debe ingresar la fecha del despacho');
+        return;
+      }
       if (!form.kilosDespachados) {
         setError('Debe ingresar los kilos despachados');
         return;
       }
 
       const payload = {
+        fecha: form.fecha,
         turno: form.turno,
         kilosDespachados: Number(form.kilosDespachados),
         estado: form.estado,
@@ -116,7 +135,7 @@ export default function Despacho() {
         await api.post('/despacho', { ...payload, cliente_id: form.cliente_id });
       }
 
-      limpiarForm();
+      limpiarForm(true);
       await cargarDespachos();
       setError('');
     } catch (err) {
@@ -126,7 +145,7 @@ export default function Despacho() {
   }
 
   async function eliminarDespacho(id) {
-    if (!window.confirm('¿Seguro que desea eliminar este despacho?')) return;
+    if (!window.confirm('Â¿Seguro que desea eliminar este despacho?')) return;
     try {
       await api.delete(`/despacho/${id}`);
       await cargarDespachos();
@@ -139,6 +158,7 @@ export default function Despacho() {
   function empezarEdicion(d) {
     setEditId(d.id);
     setForm({
+      fecha: toDateTimeLocal(d.fecha),
       cliente_id: d.cliente_id,
       turno: d.turno,
       kilosDespachados: d.kilosDespachados,
@@ -146,11 +166,16 @@ export default function Despacho() {
     });
   }
 
+  const totalDespachoKg = despachos.reduce(
+    (acc, d) => acc + Number(d.kilosDespachados || 0),
+    0
+  );
+
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Registro de Despacho</h1>
 
-      <form className="grid gap-3 md:grid-cols-4 mb-6" onSubmit={onSubmit}>
+      <form className="grid gap-3 md:grid-cols-5 mb-6" onSubmit={onSubmit}>
         <select
           name="cliente_id"
           className="border p-2 md:col-span-2"
@@ -165,6 +190,14 @@ export default function Despacho() {
             </option>
           ))}
         </select>
+
+        <input
+          type="datetime-local"
+          name="fecha"
+          className="border p-2"
+          value={form.fecha}
+          onChange={onChangeForm}
+        />
 
         <select
           name="turno"
@@ -194,9 +227,11 @@ export default function Despacho() {
           value={form.estado}
           onChange={onChangeForm}
         >
-          <option value="Entregado">Entregado</option>
-          <option value="En tránsito">En tránsito</option>
-          <option value="Pendiente">Pendiente</option>
+          {ESTADOS.map((e) => (
+            <option key={e.value} value={e.value}>
+              {e.label}
+            </option>
+          ))}
         </select>
 
         <button className="border px-4 py-2 md:col-span-1">
@@ -206,11 +241,18 @@ export default function Despacho() {
           <button
             type="button"
             className="border px-4 py-2 md:col-span-1"
-            onClick={limpiarForm}
+            onClick={() => limpiarForm(true)}
           >
             Cancelar
           </button>
         )}
+        <button
+          type="button"
+          className="border px-4 py-2 md:col-span-1"
+          onClick={() => limpiarForm(false)}
+        >
+          Nuevo cliente
+        </button>
       </form>
 
       {error && (
@@ -345,9 +387,42 @@ export default function Despacho() {
                 </tr>
               )}
             </tbody>
+            {despachos.length > 0 && (
+              <tfoot>
+                <tr className="bg-gray-50 font-semibold">
+                  <td colSpan={3} className="border px-2 py-1 text-right">
+                    Total kilos despachados
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    {totalDespachoKg.toLocaleString('es-CO')}
+                  </td>
+                  <td className="border px-2 py-1"></td>
+                  <td className="border px-2 py-1"></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       )}
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

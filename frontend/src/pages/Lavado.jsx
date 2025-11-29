@@ -1,7 +1,27 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import api from '../api/client';
 
 export default function Lavado() {
+  function toDateTimeLocal(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    const offset = date.getTimezoneOffset();
+    return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+  }
+
+  function createInitialForm(clienteId = '') {
+    return {
+      fecha: toDateTimeLocal(new Date()),
+      cliente_id: clienteId,
+      turno: 'Mañana',
+      bajaKg: '',
+      altaKg: '',
+      infectoKg: '',
+      reprocesoKg: '',
+      desmancheKg: '',
+    };
+  }
+
   const [clientes, setClientes] = useState([]);
   const [lavados, setLavados] = useState([]);
   const [editId, setEditId] = useState(null);
@@ -9,15 +29,7 @@ export default function Lavado() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
-  const [form, setForm] = useState({
-    cliente_id: '',
-    turno: 'Mañana',
-    bajaKg: '',
-    altaKg: '',
-    infectoKg: '',
-    reprocesoKg: '',
-    desmancheKg: '',
-  });
+  const [form, setForm] = useState(createInitialForm());
 
   const [filtros, setFiltros] = useState({
     cliente_id: '',
@@ -36,16 +48,9 @@ export default function Lavado() {
     setFiltros((prev) => ({ ...prev, [name]: value }));
   }
 
-  function limpiarForm() {
-    setForm({
-      cliente_id: '',
-      turno: 'Mañana',
-      bajaKg: '',
-      altaKg: '',
-      infectoKg: '',
-      reprocesoKg: '',
-      desmancheKg: '',
-    });
+  function limpiarForm(keepCliente = false) {
+    const cliente = keepCliente ? form.cliente_id : '';
+    setForm(createInitialForm(cliente));
     setEditId(null);
   }
 
@@ -67,6 +72,8 @@ export default function Lavado() {
     const d = Number(row.desmancheKg || 0);
     return b + a + i + r + d;
   }
+
+  const totalLavadoKg = lavados.reduce((acc, l) => acc + calcularTotal(l), 0);
 
   async function cargarClientes() {
     try {
@@ -114,6 +121,10 @@ export default function Lavado() {
         setError('Debe seleccionar un cliente');
         return;
       }
+      if (!form.fecha) {
+        setError('Debe ingresar la fecha del registro');
+        return;
+      }
 
       const valores = [
         form.bajaKg,
@@ -129,6 +140,7 @@ export default function Lavado() {
       }
 
       const payload = {
+        fecha: form.fecha,
         turno: form.turno,
         bajaKg: Number(form.bajaKg || 0),
         altaKg: Number(form.altaKg || 0),
@@ -143,7 +155,7 @@ export default function Lavado() {
         await api.post('/lavado', { ...payload, cliente_id: form.cliente_id });
       }
 
-      limpiarForm();
+      limpiarForm(true);
       await cargarLavados();
       setError('');
     } catch (err) {
@@ -167,6 +179,7 @@ export default function Lavado() {
   function empezarEdicion(l) {
     setEditId(l.id);
     setForm({
+      fecha: toDateTimeLocal(l.fecha),
       cliente_id: l.cliente_id,
       turno: l.turno,
       bajaKg: l.bajaKg,
@@ -181,7 +194,7 @@ export default function Lavado() {
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Registro de Lavado</h1>
 
-      <form className="grid gap-3 md:grid-cols-6 mb-6" onSubmit={onSubmit}>
+      <form className="grid gap-3 md:grid-cols-7 mb-6" onSubmit={onSubmit}>
         <select
           name="cliente_id"
           className="border p-2 md:col-span-2"
@@ -196,6 +209,14 @@ export default function Lavado() {
             </option>
           ))}
         </select>
+
+        <input
+          type="datetime-local"
+          name="fecha"
+          className="border p-2"
+          value={form.fecha}
+          onChange={onChangeForm}
+        />
 
         <select
           name="turno"
@@ -270,11 +291,18 @@ export default function Lavado() {
           <button
             type="button"
             className="border px-4 py-2 md:col-span-1"
-            onClick={limpiarForm}
+            onClick={() => limpiarForm(true)}
           >
             Cancelar
           </button>
         )}
+        <button
+          type="button"
+          className="border px-4 py-2 md:col-span-1"
+          onClick={() => limpiarForm(false)}
+        >
+          Nuevo cliente
+        </button>
       </form>
 
       {error && (
@@ -427,9 +455,26 @@ export default function Lavado() {
                 </tr>
               )}
             </tbody>
+            {lavados.length > 0 && (
+              <tfoot>
+                <tr className="bg-gray-50 font-semibold">
+                  <td colSpan={8} className="border px-2 py-1 text-right">
+                    Total kilos lavados
+                  </td>
+                  <td className="border px-2 py-1 text-right">
+                    {totalLavadoKg.toLocaleString('es-CO')}
+                  </td>
+                  <td className="border px-2 py-1"></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       )}
     </div>
   );
 }
+
+
+
+

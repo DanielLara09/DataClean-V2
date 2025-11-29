@@ -51,15 +51,19 @@ router.get('/', auth, allow('ADMIN', 'LAVADO'), async (req, res) => {
 
 router.post('/', auth, allow('ADMIN','LAVADO'), async (req, res) => {
   try {
-    const { cliente_id, turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg } = req.body;
+    const { cliente_id, fecha, turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg } = req.body;
+
+    if (!fecha) {
+      return res.status(400).json({ error: 'La fecha es obligatoria' });
+    }
 
     const id = randomUUID();
     const creado_por = req.user.id;
 
     await pool.query(
       `INSERT INTO lavado (id, cliente_id, fecha, turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg, creado_por)
-       VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)`,
-      [id, cliente_id, turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg, creado_por]
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, cliente_id, fecha.replace('T', ' '), turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg, creado_por]
     );
 
     res.status(201).json({ id });
@@ -71,10 +75,15 @@ router.post('/', auth, allow('ADMIN','LAVADO'), async (req, res) => {
 
 router.put('/:id', auth, allow('ADMIN','LAVADO'), async (req, res) => {
   const { id } = req.params;
-  const { turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg } = req.body;
+  const { fecha, turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg } = req.body;
+
+  if (!fecha) {
+    return res.status(400).json({ error: 'La fecha es obligatoria' });
+  }
+
   await pool.query(
-    `UPDATE lavado SET turno=?, bajaKg=?, altaKg=?, infectoKg=?, reprocesoKg=?, desmancheKg=? WHERE id=?`,
-    [turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg, id]
+    `UPDATE lavado SET fecha=?, turno=?, bajaKg=?, altaKg=?, infectoKg=?, reprocesoKg=?, desmancheKg=? WHERE id=?`,
+    [fecha.replace('T', ' '), turno, bajaKg, altaKg, infectoKg, reprocesoKg, desmancheKg, id]
   );
   res.json({ ok:true });
 });

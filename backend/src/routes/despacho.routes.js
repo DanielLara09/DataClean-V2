@@ -26,18 +26,35 @@ router.get('/', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
 
 
 
+function normalizarEstado(estado) {
+  if (!estado) return estado;
+  const mapa = {
+    'entregado': 'ENTREGADO',
+    'pendiente': 'PENDIENTE',
+    'cerrado': 'CERRADO',
+    'en transito': 'EN_TRANSITO',
+    'en tránsito': 'EN_TRANSITO',
+  };
+  const clave = estado.toLowerCase();
+  return mapa[clave] || estado;
+}
+
 router.post('/', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
   try {
-    const { cliente_id, turno, kilosDespachados, estado } = req.body;
+    const { cliente_id, fecha, turno, kilosDespachados, estado } = req.body;
+
+    if (!fecha) {
+      return res.status(400).json({ error: 'La fecha es obligatoria' });
+    }
 
     const id = randomUUID();
     const creado_por = req.user.id;
+    const estadoNormalizado = normalizarEstado(estado);
 
-    // Usar NOW() para evitar problemas con formato
     await pool.query(
       `INSERT INTO despacho (id, cliente_id, fecha, turno, kilosDespachados, estado, creado_por)
-       VALUES (?, ?, NOW(), ?, ?, ?, ?)`,
-      [id, cliente_id, turno, kilosDespachados, estado, creado_por]
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, cliente_id, fecha.replace('T', ' '), turno, kilosDespachados, estadoNormalizado, creado_por]
     );
 
     res.status(201).json({ id });
@@ -50,10 +67,17 @@ router.post('/', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
 
 router.put('/:id', auth, allow('ADMIN','DESPACHO'), async (req, res) => {
   const { id } = req.params;
-  const { turno, kilosDespachados, estado } = req.body;
+  const { fecha, turno, kilosDespachados, estado } = req.body;
+
+  if (!fecha) {
+    return res.status(400).json({ error: 'La fecha es obligatoria' });
+  }
+
+  const estadoNormalizado = normalizarEstado(estado);
+
   await pool.query(
-    `UPDATE despacho SET turno=?, kilosDespachados=?, estado=? WHERE id=?`,
-    [turno, kilosDespachados, estado, id]
+    `UPDATE despacho SET fecha=?, turno=?, kilosDespachados=?, estado=? WHERE id=?`,
+    [fecha.replace('T', ' '), turno, kilosDespachados, estadoNormalizado, id]
   );
   res.json({ ok:true });
 });

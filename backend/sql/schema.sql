@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS despacho (
   fecha DATETIME NOT NULL,
   turno VARCHAR(20) NOT NULL,
   kilosDespachados DECIMAL(10,2) NOT NULL CHECK (kilosDespachados >= 0),
-  estado ENUM('PENDIENTE','ENTREGADO','CERRADO') NOT NULL DEFAULT 'PENDIENTE',
+  estado ENUM('PENDIENTE','EN_TRANSITO','ENTREGADO','CERRADO') NOT NULL DEFAULT 'PENDIENTE',
   creado_por CHAR(36) NOT NULL,
   CONSTRAINT fk_despacho_cliente FOREIGN KEY (cliente_id) REFERENCES cliente(id),
   CONSTRAINT fk_despacho_usuario FOREIGN KEY (creado_por) REFERENCES usuario(id),
