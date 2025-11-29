@@ -14,21 +14,11 @@ import { kpiDiario } from './services/kpi.service.js';
 
 const app = express();
 
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://datacleansas.netlify.app'
-];
-
-// 🚨 SOLO UNA CONFIGURACIÓN DE CORS
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-
+// 👇 CORS súper simple para que no bloquee nada
+app.use(cors());
 app.use(express.json());
 
-// RUTAS
+// Rutas
 app.use('/api/auth', authRoutes);
 app.use('/api/kpis', kpiRoutes);
 app.use('/api/clientes', auth, clientesRoutes);
