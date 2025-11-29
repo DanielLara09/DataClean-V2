@@ -15,20 +15,22 @@ import { kpiDiario } from './services/kpi.service.js';
 const app = express();
 
 const allowedOrigins = [
-  'http://localhost:5173',              // dev
-  'https://datacleansas.netlify.app',   // producción
+  'http://localhost:5173',
+  'https://datacleansas.netlify.app'
 ];
 
-// 👉 CORS: una sola vez, ANTES de las rutas
+// 🚨 SOLO UNA CONFIGURACIÓN DE CORS
 app.use(cors({
   origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json());
 
 // RUTAS
-app.use('/api/kpis', kpiRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/kpis', kpiRoutes);
 app.use('/api/clientes', auth, clientesRoutes);
 app.use('/api/lavado', lavadoRoutes);
 app.use('/api/despacho', despachoRoutes);
