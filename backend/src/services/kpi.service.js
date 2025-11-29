@@ -1,17 +1,7 @@
 import { pool } from '../db.js';
 
 export async function kpiDiario(desde, hasta, clienteId = null) {
-  
-  if (!clienteId) {
-    const [rows] = await pool.query(
-      `SELECT dia, kg_lavados, kg_despachados
-       FROM v_kpi_diario
-       WHERE dia BETWEEN ? AND ?
-       ORDER BY dia`,
-      [desde, hasta]
-    );
-    return rows;
-  }
+  const withCliente = Boolean(clienteId);
 
   const sql = `
     SELECT 
@@ -19,7 +9,7 @@ export async function kpiDiario(desde, hasta, clienteId = null) {
       SUM(t.kg_lavados) AS kg_lavados,
       SUM(t.kg_despachados) AS kg_despachados
     FROM (
-      -- Lavado por día
+      -- Lavado por dia
       SELECT
         DATE(l.fecha) AS dia,
         SUM(
@@ -32,29 +22,29 @@ export async function kpiDiario(desde, hasta, clienteId = null) {
         0 AS kg_despachados
       FROM lavado l
       WHERE DATE(l.fecha) BETWEEN ? AND ?
-        AND l.cliente_id = ?
+        ${withCliente ? 'AND l.cliente_id = ?' : ''}
       GROUP BY DATE(l.fecha)
 
       UNION ALL
 
-      -- Despacho por día
+      -- Despacho por dia
       SELECT
         DATE(d.fecha) AS dia,
         0 AS kg_lavados,
         SUM(COALESCE(d.kilosDespachados,0)) AS kg_despachados
       FROM despacho d
       WHERE DATE(d.fecha) BETWEEN ? AND ?
-        AND d.cliente_id = ?
+        ${withCliente ? 'AND d.cliente_id = ?' : ''}
       GROUP BY DATE(d.fecha)
     ) t
     GROUP BY t.dia
     ORDER BY t.dia;
   `;
 
-  const [rows] = await pool.query(sql, [
-    desde, hasta, clienteId,
-    desde, hasta, clienteId,
-  ]);
+  const params = withCliente
+    ? [desde, hasta, clienteId, desde, hasta, clienteId]
+    : [desde, hasta, desde, hasta];
 
+  const [rows] = await pool.query(sql, params);
   return rows;
 }

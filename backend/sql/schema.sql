@@ -93,8 +93,21 @@ CREATE TABLE IF NOT EXISTS r_despacho_lavado (
 
 -- KPIs
 CREATE OR REPLACE VIEW v_kpi_diario AS
-SELECT DATE(fecha) AS dia,
-       SUM(totalKg) AS kg_lavados,
-       (SELECT IFNULL(SUM(kilosDespachados),0) FROM despacho d2 WHERE DATE(d2.fecha)=DATE(l.fecha)) AS kg_despachados
-FROM lavado l
-GROUP BY DATE(fecha);
+SELECT c.dia,
+       IFNULL(l.kg_lavados,0) AS kg_lavados,
+       IFNULL(d.kg_despachados,0) AS kg_despachados
+FROM (
+  SELECT DATE(fecha) AS dia FROM lavado
+  UNION
+  SELECT DATE(fecha) AS dia FROM despacho
+) c
+LEFT JOIN (
+  SELECT DATE(fecha) AS dia, SUM(totalKg) AS kg_lavados
+  FROM lavado
+  GROUP BY DATE(fecha)
+) l ON l.dia = c.dia
+LEFT JOIN (
+  SELECT DATE(fecha) AS dia, SUM(kilosDespachados) AS kg_despachados
+  FROM despacho
+  GROUP BY DATE(fecha)
+) d ON d.dia = c.dia;
