@@ -9,8 +9,8 @@ export const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   // Render limita max_user_connections; mantenemos el pool por debajo de ese umbral
-  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 2),
-  maxIdle: Number(process.env.DB_CONNECTION_LIMIT || 2),
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 4),
+  maxIdle: Number(process.env.DB_CONNECTION_LIMIT || 4),
   idleTimeout: 60000,
   queueLimit: 0,
   enableKeepAlive: true
